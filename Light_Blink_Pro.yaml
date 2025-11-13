@@ -1,13 +1,14 @@
-blueprint:
+\blueprint:
   name: Light Blink Pro
   description: |
-    ## 🌟 Light Blink Pro: State Restoration, Stuck Light Recovery, and Programmatic Control (version 1.1)
+    ## 🌟 Light Blink Pro: State Restoration, Stuck Light Recovery, and Programmatic Control (version 1.2)
     This blueprint provides a highly reliable and feature-rich way to make one or more lights blink for alerts, notifications, or visual feedback. It ensures lights always return to their original state and is designed for maximum compatibility across various light types.
 
     ### Core Features
     - Essential Blink Functionality: Easily configure lights to flash a specific number of times, at a defined duration, brightness, and transition speed.
+    - **Alternating Blink Mode (New!):** Use the **CHANGE** action between flashes to alternate the light color and/or brightness, creating effects like color pulsing or alternating colors.
     - Single Required Input: The light entity itself is the only required input. All other values (count, duration, color, brightness, etc.) are optional and will fall back to their default values if left blank.
-    - Universal Light Compatibility: Handles blinking for color-capable lights (applying the selected hue) and non-color lights (applying only brightness and timing).
+    - Universal Light Compatibility: Handles blinking for color-capable lights (applying the selected hue) and non-color lights (applying only brightness and timing) as well as simple on/off lights.
     - Flexible Color Selection: Supports choosing a single blink color using either the RGB color picker (which takes priority) or a color name (via text input).
     - Reliable State Preservation: The script automatically saves the light's exact state (on/off, brightness, color) to a temporary scene and ensures it is fully restored after the blinking sequence.
     - Stuck Light Recovery: Includes logic to detect and recover color lights that fail to restore their original state (a common issue with some light devices).
@@ -21,13 +22,13 @@ blueprint:
     - Repeat Loop: Runs for the defined Blink Count. In each cycle, it:
       - Turns the lights ON, applying the color, brightness, and transition speed.
       - Pauses for the specified Blink Duration.
-      - Turns the lights OFF or restores their original state.  (Always restores state on the final blink)
+      - Executes the selected between blink action (OFF, CHANGE, or RESTORE). (Always restores the original scene on the final blink)
       - Pauses again for the Blink Duration.
     - Proactive Fallback (Optional): If enabled, the script applies the fallback color/temperature immediately before the final scene restore to proactively clear any residual blink color from the light's hardware memory.
     - Final Cleanup: After all recovery and stuck-light checks are complete, any lights that were originally OFF are explicitly turned back OFF
 
     ### Built-in Reliability (Stuck Light Recovery)
-    This multi-stage recovery addresses lights that occasionally get "stuck" on the final blink color:
+    This multi-stage recovery addresses lights that occasionally get "stuck" on the **primary blink color OR the change blink color.**:
     - Detection: After the primary restoration, the script checks if any light is still stuck on the blink color.
     - Recovery Process 1 (Scene Restore): If stuck lights are found, the script makes 2 attempts to apply the original scene 1 second apart (if enabled).
     - Recovery Process 2 (Color Fallback): If the light remains stuck, the script applies the Color Fallback Temperature and Brightness Percentage to reset the light to a usable state (if enabled). If the first fallback attempt fails, it will make a second attempt 1 second later to apply the fallback for especially stubborn lights.
@@ -36,7 +37,7 @@ blueprint:
 
     ### 💡 Timing Tips and Latency
     When setting times, remember that **devices need time to communicate and process commands** (latency). If you are seeing issues like wrong count of blinks or missing scene resets, begin slowing increasing these until you see stability.
-    - **Blink Duration (`input_blink_duration`):** The time the light is ON or OFF. Recommend **1.0 second or more** for reliable blinking on most setups.
+    - **Blink Duration (`input_blink_duration`):** The time the light is ON or OFF. Recommend **1.0 second or more** for reliable blinking on most setups. In my case, 1.5 seconds works consistently works well, where 1.0 seconds would still occasionally cause issues.
     - **Wait Time (`input_wait_time_for_light_updates`):** This value is critical for **Stuck Light Recovery**. If your lights often get stuck on the blink color, **increase this time** (e.g., from 1000ms to 2000ms) to give the light more time to fully process the restore command before the script checks its state.
   domain: script
   source_url: https://community.home-assistant.io/t/light-blink-pro-state-restoration-stuck-color-light-recovery-and-programmatic-control/948771
@@ -52,29 +53,6 @@ blueprint:
         target:
           entity:
             domain: light
-
-    input_blink_color:
-      name: Blink Color
-      description: |
-        The specific color to use during the blink sequence.
-        - Priority: This RGB value **takes priority** over 'Blink Color Name'.
-        - Overriding: If set, it **cannot be overridden** by 'Blink Color Name' when called programmatically (via a script/automation).
-        - Format: The color picker provides an RGB value, e.g., [255, 0, 0].
-        - Default: Leave blank to skip color change and only flash the light's current brightness/state (if 'Blink Color Name' is also blank).
-        - Tip: To remove a selected color value, editing the script in YAML is the easiest method.
-      default: ""
-      selector:
-        color_rgb: {}
-
-    input_blink_color_name:
-      name: Blink Color Name
-      description: |
-        A common color name to use for blinking (e.g., 'red', 'blue', 'lime').
-        - Precedence: This is only used if the 'Blink Color (RGB Picker)' is left blank.
-        - Default: Leave blank to skip color change.
-        Available Color Names:
-        https://github.com/home-assistant/core/blob/e2fdc6a98bdd22187688e70701fc3617423a714b/homeassistant/util/color.py#L19
-      default: ""
 
     input_restore_scene_id:
       name: Restore Scene ID
@@ -105,6 +83,41 @@ blueprint:
           step: 0.1
           mode: slider
 
+    input_blink_color:
+      name: Blink Color
+      description: |
+        The specific color to use during the blink sequence.
+        - Priority: This RGB value **takes priority** over 'Blink Color Name'.
+        - Overriding: If set, it **cannot be overridden** by 'Blink Color Name' when called programmatically (via a script/automation).
+        - Format: The color picker provides an RGB value, e.g., [255, 0, 0].
+        - Default: Leave blank to skip color change and only flash the light's current brightness/state (if 'Blink Color Name' is also blank).
+        - Tip: To remove a selected color value, editing the script in YAML is the easiest method.
+      default: ""
+      selector:
+        color_rgb: {}
+
+    input_blink_color_name:
+      name: Blink Color Name
+      description: |
+        A common color name to use for blinking (e.g., 'red', 'blue', 'lime').
+        - Precedence: This is only used if the 'Blink Color (RGB Picker)' is left blank.
+        - Default: Leave blank to skip color change.
+        Available Color Names:
+        https://github.com/home-assistant/core/blob/e2fdc6a98bdd22187688e70701fc3617423a714b/homeassistant/util/color.py#L19
+      default: ""
+
+    input_blink_brightness_pct:
+      name: Blink Brightness Percent
+      description: |
+        The brightness percentage (1-100) used during the blink flashes.
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: slider
+
     input_blink_transition_length:
       name: Blink Transition Length
       description: |
@@ -117,26 +130,58 @@ blueprint:
           step: 0.05
           mode: slider
 
-    input_blink_with_off:
-      name: Blink With Off
+    input_blink_action_between_flashes:
+      name: Action Between Flashes
       description: |
-        Determines whether lights turn off between blinks.  
-        Warning: Keep this as true for non-color lights and for
-        color lights when no blink color is selected — otherwise, no visible blinking effect will occur.
-      default: true
+        The state lights should adopt in the pause between flashes (e.g., Blink ON -> PAUSE/ACTION -> Blink ON).
+        - **OFF**: Lights turn off completely (uses transition time).
+        - **CHANGE**: Lights change attributes (color/brightness/transition) using the 'Blink Change' settings below.
+        - **RESTORE**: Lights return to their pre-blink scene (use this to go back to the pre-flash on state / color of light between flashes).
+      default: "OFF"
       selector:
-        boolean:
+        select:
+          options:
+            - "OFF"
+            - "CHANGE"
+            - "RESTORE"
 
-    input_blink_brightness_pct:
-      name: Blink Brightness Percent
+    input_blink_change_color:
+      name: Blink Change Color ('Action Between Flashes' is set to CHANGE)
       description: |
-        The brightness percentage (1-100) used during the blink flashes.
-      default: 100
+        The RGB color to use for the intermediate CHANGE state. If left blank, color is not changed.
+        - Priority: Takes priority over 'Blink Change Color Name'.
+      default: ""
+      selector:
+        color_rgb: {}
+
+    input_blink_change_color_name:
+      name: Blink Change Color Name ('Action Between Flashes' is set to CHANGE)
+      description: |
+        A common color name (e.g., 'red', 'blue') for the intermediate CHANGE state. Only used if 'Blink Change Color (RGB)' is blank.
+      default: ""
+
+    input_blink_change_brightness_pct:
+      name: Blink Change Brightness Percent ('Action Between Flashes' is set to CHANGE)
+      description: |
+        The brightness percentage (1-100) used for the intermediate CHANGE state.
+      default: 20
       selector:
         number:
           min: 1
           max: 100
           step: 1
+          mode: slider
+
+    input_blink_change_transition_length:
+      name: Blink Change / Restore Transition Length ('Action Between Flashes' is set to CHANGE OR RESTORE)
+      description: |
+        How quickly (in seconds) the light transitions to the intermediate CHANGE OR RESTORE state. A higher value creates a smoother, pulsing effect.
+      default: 0.1
+      selector:
+        number:
+          min: 0.1
+          max: 5
+          step: 0.05
           mode: slider
 
     input_wait_time_for_light_updates:
@@ -208,26 +253,6 @@ fields:
     description: The light entity or list of light entities to blink.
     required: false
     example: "light.living_room_light, light.kitchen_sink_light"
-  blink_color:
-    name: Blink Color
-    description: |
-      The specific color to use during the blink sequence. The color to use for blinking (RGB tuple: [R, G, B]).
-      - Priority: This RGB value takes priority over 'Blink Color Name'.
-      - Overriding: If set, it cannot be overridden by 'Blink Color Name' when called programmatically (via a script/automation).
-      - Default: Leave blank to skip color change and only flash the light's current brightness/state (if 'Blink Color Name' is also blank).
-    required: false
-    example: "[255, 0, 0]"
-  blink_color_name:
-    name: Blink Color Name
-    description: |
-      A common color name to use for blinking (e.g., 'red', 'blue', 'lime').
-      - Precedence: This is only used if the 'Blink Color' is left blank.
-      - Default: Leave blank to skip color change.
-      Available Color Names:
-      https://github.com/home-assistant/core/blob/e2fdc6a98bdd22187688e70701fc3617423a714b/homeassistant/util/color.py#L19
-    default: ""
-    required: false
-    example: "red"
   restore_scene_id:
     name: Restore Scene ID
     description: |
@@ -249,21 +274,26 @@ fields:
     required: false
     default: 1.1
     example: "1.1"
-  blink_transition_length:
-    name: Blink Transition Length
+  blink_color:
+    name: Blink Color
     description: |
-      How quickly (in seconds) the light changes color/brightness.
+      The specific color to use during the blink sequence. The color to use for blinking (RGB tuple: [R, G, B]).
+      - Priority: This RGB value takes priority over 'Blink Color Name'.
+      - Overriding: If set, it cannot be overridden by 'Blink Color Name' when called programmatically (via a script/automation).
+      - Default: Leave blank to skip color change and only flash the light's current brightness/state (if 'Blink Color Name' is also blank).
     required: false
-    default: 0.1
-    example: "0.05"
-  blink_with_off:
-    name: Blink With Off
+    example: "[255, 0, 0]"
+  blink_color_name:
+    name: Blink Color Name
     description: |
-      If true, lights turn off between blinks. If false, lights return to their original state between blinks. 
-      Warning: Keep this set to true for non-color lights and for color lights when no blink color is selected — otherwise, no visible blinking effect will occur.
+      A common color name to use for blinking (e.g., 'red', 'blue', 'lime').
+      - Precedence: This is only used if the 'Blink Color' is left blank.
+      - Default: Leave blank to skip color change.
+      Available Color Names:
+      https://github.com/home-assistant/core/blob/e2fdc6a98bdd22187688e70701fc3617423a714b/homeassistant/util/color.py#L19
+    default: ""
     required: false
-    default: true
-    example: "true"
+    example: "red"
   blink_brightness_pct:
     name: Blink Brightness Percent
     description: |
@@ -271,6 +301,48 @@ fields:
     required: false
     default: 100
     example: "75"
+  blink_transition_length:
+    name: Blink Transition Length
+    description: |
+      How quickly (in seconds) the light changes color/brightness.
+    required: false
+    default: 0.1
+    example: "0.1"
+  blink_action_between_flashes:
+    name: Action Between Flashes
+    description: |
+      The state lights should adopt in the pause between flashes. Options: OFF, CHANGE, RESTORE.
+    required: false
+    default: OFF
+    example: "CHANGE"
+  blink_change_color:
+    name: Blink Change Color (RGB)
+    description: |
+      The RGB color to use for the intermediate CHANGE state.
+    required: false
+    default: ""
+    example: "[0, 0, 255]"
+  blink_change_color_name:
+    name: Blink Change Color Name
+    description: |
+      A common color name (e.g., 'red') for the intermediate CHANGE state.
+    required: false
+    default: ""
+    example: "blue"
+  blink_change_brightness_pct:
+    name: Blink Change Brightness Percent
+    description: |
+      The brightness percentage (1–100) for the intermediate CHANGE state.
+    required: false
+    default: 10
+    example: "5"
+  blink_change_transition_length:
+    name: Blink Change / Restore Transition Length
+    description: |
+      How quickly (in seconds) the light transitions to the intermediate CHANGE or RESTORE state.
+    required: false
+    default: 0.1
+    example: "0.8"
   wait_time_for_light_updates:
     name: Wait Time for Light Updates (ms)
     description: |
@@ -319,12 +391,6 @@ variables:
   input_lights: !input input_lights
   v_lights: >-
     {{ lights | default(input_lights.entity_id) }}
-  input_blink_color: !input input_blink_color
-  v_blink_color: >-
-    {{ blink_color | default(input_blink_color) }}
-  input_blink_color_name: !input input_blink_color_name
-  v_blink_color_name: >-
-    {{ blink_color_name | default(input_blink_color_name) }}
   input_restore_scene_id: !input input_restore_scene_id
   v_restore_scene_id: >-
     {{ restore_scene_id | default(input_restore_scene_id) }}
@@ -334,15 +400,33 @@ variables:
   input_blink_duration: !input input_blink_duration
   v_blink_duration: >-
     {{ blink_duration | default(input_blink_duration) | float }}
-  input_blink_transition_length: !input input_blink_transition_length
-  v_blink_transition_length: >-
-    {{ blink_transition_length | default(input_blink_transition_length) | float }}
-  input_blink_with_off: !input input_blink_with_off
-  v_blink_with_off: >-
-    {{ blink_with_off | default(input_blink_with_off) | bool }}
+  input_blink_color: !input input_blink_color
+  v_blink_color: >-
+    {{ blink_color | default(input_blink_color) }}
+  input_blink_color_name: !input input_blink_color_name
+  v_blink_color_name: >-
+    {{ blink_color_name | default(input_blink_color_name) }}
   input_blink_brightness_pct: !input input_blink_brightness_pct
   v_blink_brightness_pct: >-
     {{ blink_brightness_pct | default(input_blink_brightness_pct) | int }}
+  input_blink_transition_length: !input input_blink_transition_length
+  v_blink_transition_length: >-
+    {{ blink_transition_length | default(input_blink_transition_length) | float }}
+  input_blink_action_between_flashes: !input input_blink_action_between_flashes
+  v_blink_action_between_flashes: >-
+    {{ blink_action_between_flashes | default(input_blink_action_between_flashes) }}
+  input_blink_change_color: !input input_blink_change_color
+  v_blink_change_color: >-
+    {{ blink_change_color | default(input_blink_change_color) }}
+  input_blink_change_color_name: !input input_blink_change_color_name
+  v_blink_change_color_name: >-
+    {{ blink_change_color_name | default(input_blink_change_color_name) }}
+  input_blink_change_brightness_pct: !input input_blink_change_brightness_pct
+  v_blink_change_brightness_pct: >-
+    {{ blink_change_brightness_pct | default(input_blink_change_brightness_pct) | int }}
+  input_blink_change_transition_length: !input input_blink_change_transition_length
+  v_blink_change_transition_length: >-
+    {{ blink_change_transition_length | default(input_blink_change_transition_length) | float }}
   input_wait_time_for_light_updates: !input input_wait_time_for_light_updates
   v_wait_time_for_light_updates: >-
     {{ wait_time_for_light_updates | default(input_wait_time_for_light_updates) | int }}
@@ -370,15 +454,6 @@ sequence:
         {% else %}
           {{ v_lights | list }}
         {% endif %}
-      # Collect a list of lights that were originally OFF. This is needed because 'scene.create'
-      # does not reliably capture color/brightness for lights that are off.
-      initial_off_lights: >-
-        {% set off_lights = namespace(list=[]) %}
-        {% for light_id in all_lights %}
-          {% if is_state(light_id, 'off') %}
-            {% set off_lights.list = off_lights.list + [light_id] %}
-          {% endif %}
-        {% endfor %} {{ off_lights.list }}
       color_lights: >-
         {% set color_lights = namespace(list=[]) %} {% for light_id in
         all_lights %}
@@ -393,10 +468,32 @@ sequence:
         all_lights %}
           {% set light_state = states[light_id] %}
           {% set color_modes = light_state.attributes.supported_color_modes | default([]) %}
-          {% if not ('xy' in color_modes or 'hs' in color_modes or 'rgb' in color_modes) %}
+          {% if not ('xy' in color_modes or 'hs' in color_modes or 'rgb' in color_modes or color_modes==['onoff'] or color_modes==['unknown']) %}
             {% set non_color_lights.list = non_color_lights.list + [light_id] %}
           {% endif %}
         {% endfor %} {{ non_color_lights.list }}
+      onoff_lights: >-
+        {% set onoff_lights = namespace(list=[]) %} {% for light_id in
+        all_lights %}
+          {% set color_modes = state_attr(light_id, 'supported_color_modes') | default([]) %}
+          {% if (color_modes == ['onoff'] or color_modes == ['unknown']) %}
+            {% set onoff_lights.list = onoff_lights.list + [light_id] %}
+          {% endif %}
+        {% endfor %} {{ onoff_lights.list }}
+      # Collect a list of lights that were originally OFF. This is needed because 'scene.create'
+      # does not reliably capture color/brightness for lights that are off.
+      initial_off_lights: >-
+        {% set off_lights = namespace(list=[]) %}
+        {% for light_id in all_lights %}
+          {% if is_state(light_id, 'off') %}
+            {% set off_lights.list = off_lights.list + [light_id] %}
+          {% endif %}
+        {% endfor %} {{ off_lights.list }}
+      # Required to handle blinking effect when users choose scene RESTORE since these simple on/off lights are excluded from scenes
+      # due to the scenarios where you would never actually see them blink (eg there is no brightness, color or other indicator)
+      initial_on_onoff_lights: >-
+        {% set initial_off_onoff_lights = initial_off_lights | select('in', onoff_lights) | list %}
+        {{ onoff_lights | reject('in', initial_off_onoff_lights) | list }}
       color_data_source: >-
         {% if v_blink_color is defined and v_blink_color is not none and v_blink_color != "" %}
           rgb_color
@@ -422,6 +519,30 @@ sequence:
             'brightness_pct': v_blink_brightness_pct | default(100) | int} }}
       sample_color_light_id: "{{ color_lights | first if color_lights | length > 0 else none }}"
       blink_xy: null
+      change_blink_xy:
+      change_color_data_source: >-
+        {% if v_blink_change_color is defined and v_blink_change_color is not none and v_blink_change_color != "" %}
+          rgb_color
+        {% elif v_blink_change_color_name is defined and v_blink_change_color_name | length > 0 %}
+          color_name
+        {% else %}
+          none
+        {% endif %}
+      change_apply_color: >-
+        {{ change_color_data_source != 'none' and color_lights | length > 0 }}
+      change_color_blink_data: >-
+        {
+          "transition": {{ v_blink_change_transition_length | default(0.1) | float }},
+          "brightness_pct": {{ v_blink_change_brightness_pct | default(20) | int }}
+          {% if change_color_data_source == 'rgb_color' %}
+          , "rgb_color": {{ v_blink_change_color }}
+          {% elif change_color_data_source == 'color_name' %}
+          , "color_name": "{{ v_blink_change_color_name }}"
+          {% endif %}
+        }
+      change_non_color_blink_data: >-
+        {{ {'transition': v_blink_change_transition_length | default(0.1) | float,
+            'brightness_pct': v_blink_change_brightness_pct | default(100) | int} }}
   # Turn ON all lights that are currently OFF. This ensures the scene snapshot
   # captures the light's full color/brightness attributes, not just 'state: off'.
   - choose:
@@ -435,9 +556,11 @@ sequence:
           - delay:
               milliseconds: "{{ v_wait_time_for_light_updates }}"
   # Create a scene snapshot of the lights' current state before blinking begins
+  # No need to capture the state of the onoff light, they are handled separately to ensure they flash
+  # Otherwise we would turn them on, capture the scene, and they would stay on through the flashes
   - data:
       scene_id: "{{ v_restore_scene_id | default('tmp_pre_blink_scene') }}"
-      snapshot_entities: "{{ all_lights }}"
+      snapshot_entities: "{{ color_lights + non_color_lights }}"
     action: scene.create
 
   # Begin Flash Sequence
@@ -445,7 +568,7 @@ sequence:
       count: "{{ v_blink_count | int }}"
       sequence:
         # **** Flash ON ****
-        # Turn ON color lights with color/brightness/transition data
+        # 1. Turn ON color lights (with color/brightness/transition data)
         - choose:
             - conditions:
                 - condition: template
@@ -455,7 +578,16 @@ sequence:
                     entity_id: "{{ color_lights }}"
                   data: "{{ color_blink_data }}"
                   action: light.turn_on
-        # Turn ON non-color lights with brightness/transition data
+        # 2. Turn ON simple on/off lights (no data)
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ onoff_lights | length > 0 }}"
+              sequence:
+                - target:
+                    entity_id: "{{ onoff_lights }}"
+                  action: light.turn_on
+        # 3. Turn ON capable non-color lights (brightness/transition data)
         - choose:
             - conditions:
                 - condition: template
@@ -479,38 +611,108 @@ sequence:
                     blink_xy: "{{ state_attr(sample_color_light_id, 'xy_color') }}"
         - delay:
             milliseconds: 100
-        # **** Flash OFF / Scene Restore ****
-        # Re-check for blink_xy in case the light was slow to update in the first check (only runs if blink_xy is still none)
+        # **** Flash OFF / CHANGE / Scene RESTORE ****
+        # This section determines the light state during the time between blinks.
         - choose:
+            # 1. FINAL RESTORE: Always runs on the last loop, regardless of action chosen.
             - conditions:
                 - condition: template
-                  value_template: >-
-                    {{ blink_xy is none and apply_color and sample_color_light_id is not none }}
+                  value_template: "{{ repeat.last }}"
               sequence:
-                - variables:
-                    blink_xy: "{{ state_attr(sample_color_light_id, 'xy_color') }}"
-        - choose:
-            # 1. LIGHT OFF: Runs ONLY if 'Blink With Off' is TRUE AND it's not the last loop.
-            # The last loop will use the 'default' scene restore action.
+                - target:
+                    entity_id: >-
+                      scene.{{ v_restore_scene_id | default('light_restore_scene') }}
+                  action: scene.turn_on
+                  data:
+                    transition: "{{ v_blink_transition_length | default(0.1) | float }}"
+                # 2. Turn OFF simple on/off lights since they are excluded from scene
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ onoff_lights | length > 0 }}"
+                      sequence:
+                        - target:
+                            entity_id: "{{ onoff_lights }}"
+                          action: light.turn_off
+            # 2. OFF Action: Runs if selected AND it's not the final loop.
             - conditions:
                 - condition: template
                   value_template: >-
-                    {{ v_blink_with_off and not repeat.last }}
+                    {{ v_blink_action_between_flashes == 'OFF' and not repeat.last }}
               sequence:
                 - target:
                     entity_id: "{{ all_lights }}"
                   data:
                     transition: "{{ v_blink_transition_length | default(0.1) | float }}"
                   action: light.turn_off
-          # 2. SCENE RESTORE: Runs if 'Blink With Off' is FALSE OR it's the last loop.
+          # 3. CHANGE/RESTORE (Intermediate): Runs if CHANGE/RESTORE selected and it's not the final loop.
           default:
-            - target:
-                entity_id: >-
-                  scene.{{ v_restore_scene_id | default('light_restore_scene') }}
-              action: scene.turn_on
+            - choose:
+                # A. CHANGE Action: Uses the dynamic 'change_data' dictionary to apply user-specified attributes.
+                - conditions:
+                    - condition: template
+                      value_template: "{{ v_blink_action_between_flashes == 'CHANGE' }}"
+                  sequence:
+                    # 1. Simple On/Off Lights: Turn OFF to create the blink effect
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ onoff_lights | length > 0 }}"
+                          sequence:
+                            - action: light.turn_off
+                              target:
+                                entity_id: "{{ onoff_lights }}"
+                    # 2. Color Lights: Apply change color/brightness/transition data
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ color_lights | length > 0 }}"
+                          sequence:
+                            - action: light.turn_on
+                              target:
+                                entity_id: "{{ color_lights }}"
+                              data: "{{ change_color_blink_data }}"
+                    # 3. Non-Color Lights: Apply change brightness/transition data
+                    - choose:
+                        - conditions:
+                            - condition: template
+                              value_template: "{{ non_color_lights | length > 0 }}"
+                          sequence:
+                            - action: light.turn_on
+                              target:
+                                entity_id: "{{ non_color_lights }}"
+                              data: "{{ change_non_color_blink_data }}"
+              # B. RESTORE Action: (default if not final loop and not CHANGE/OFF)
+              default:
+                - target:
+                    entity_id: >-
+                      scene.{{ v_restore_scene_id | default('light_restore_scene') }}
+                  action: scene.turn_on
+                  data:
+                    transition: "{{ v_blink_change_transition_length | default(0.1) | float }}"
+                # 2. Turn OFF simple on/off lights since they are excluded from scene
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ onoff_lights | length > 0 }}"
+                      sequence:
+                        - target:
+                            entity_id: "{{ onoff_lights }}"
+                          action: light.turn_off
         # The delay for the off/restore portion of the flash
         - delay:
             seconds: "{{ v_blink_duration | default(1.0) | float }}"
+        # If a change color is selected for between blinks, we need to ensure the light doesn't get stuck on that color either.
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: >-
+                    {{ change_blink_xy is none and change_apply_color and sample_color_light_id is not none }}
+              sequence:
+                - variables:
+                    change_blink_xy: "{{ state_attr(sample_color_light_id, 'xy_color') }}"
+        - delay:
+            milliseconds: 100
 
   # Optional proactive change of the light to the fallback color BEFORE the final scene restore
   - choose:
@@ -544,13 +746,16 @@ sequence:
                     milliseconds: "{{ v_wait_time_for_light_updates }}"
                 - variables:
                     loop_count: "{{ loop_count + 1 }}"
-                    # Check for lights that are ON and still showing the blink color (xy value)
+                    # Check if the light is ON and the current color matches EITHER the main blink color OR the change xy_color
                     stuck_lights: >
-                      {% set ns = namespace(stuck=[]) %} {% for light_id in
-                      color_lights %}
+                      {% set ns = namespace(stuck=[]) %}
+                      {% for light_id in color_lights %}
                         {% set current_xy = state_attr(light_id, 'xy_color') %}
-                        {% if is_state(light_id, 'on') and current_xy == blink_xy and blink_xy is not none %}
-                          {% set ns.stuck = ns.stuck + [light_id] %}
+                        {% if is_state(light_id, 'on') %}
+                          {% if (current_xy == blink_xy and blink_xy is not none) or 
+                              (current_xy == change_blink_xy and change_blink_xy is not none) %}
+                            {% set ns.stuck = ns.stuck + [light_id] %}
+                          {% endif %}
                         {% endif %}
                       {% endfor %} {{ ns.stuck }}
                 - choose:
@@ -621,4 +826,13 @@ sequence:
             data:
               transition: 0.1
             action: light.turn_off
+  # Final Cleanup: Turn simple on/off lights that were originally ON back ON.
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ initial_on_onoff_lights | length > 0 }}"
+        sequence:
+          - action: light.turn_on
+            target:
+              entity_id: "{{ initial_on_onoff_lights }}"
 mode: single
