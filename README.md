@@ -1,4 +1,4 @@
-## 🌟 Light Blink Pro: State Restoration, Stuck Light Recovery, and Programmatic Control (version 1.1)
+## 🌟 Light Blink Pro: State Restoration, Stuck Light Recovery, and Programmatic Control
 This blueprint provides a highly reliable and feature-rich way to make one or more lights blink for alerts, notifications, or visual feedback. It ensures lights always return to their original state and is designed for maximum compatibility across various light types.
 
 ### Core Features
